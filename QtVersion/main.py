@@ -665,100 +665,44 @@ class SignupLoginMenu():
         self.layout.addWidget(self.securityLabel, 10, 0)
         self.layout.addWidget(self.securityLine, 10, 1)
         self.layout.addWidget(self.submit, 11, 0, 1, 3)
+    
+    def _validate_field(self,getter,value,warning_label:QLabel,*extra_args):
+        try:
+            getter(value,*extra_args)
+            if warning_label.text().strip():
+                warning_label.setText(" ")
+        except ValueError as e:
+            warning_label.setText(str(e))
 
     def get_first_name(self):
-        try:
-            self.firstNameLineText = self.firstNameLine.text()
-            self.user.get_first_name(self.firstNameLineText)
-            if self.firstnamewarning.text() != ' ':
-                self.firstnamewarning.setText(' ')
-        except ValueError as e:
-            error = str(e)
-            self.firstnamewarning.setText(error)
+        self._validate_field(self.user.get_first_name,self.firstNameLine.text(),self.firstnamewarning)
 
     def get_last_name(self):
-        try:
-            self.lastNameLineText = self.lastNameLine.text()
-            self.user.get_last_name(self.lastNameLineText)
-            if self.lastnamewarning.text() != ' ':
-                self.lastnamewarning.setText(' ')
-        except ValueError as e:
-            error = str(e)
-            self.lastnamewarning.setText(error)
+        self._validate_field(self.user.get_last_name,self.lastNameLine.text(),self.lastnamewarning)
 
     def get_code_meli(self):
-        try:
-            self.nationalIDLineText = self.nationalIDLine.text()
-            self.user.get_code_meli(self.nationalIDLineText)
-            if self.nationalIDwarning.text() != ' ':
-                self.nationalIDwarning.setText(' ')
-        except ValueError as e:
-            error = str(e)
-            self.nationalIDwarning.setText(error)
+        self._validate_field(self.user.get_code_meli,self.nationalIDLine.text(),self.nationalIDwarning)
 
     def get_phone_number(self):
-        try:
-            self.phoneNumberLineText = self.phoneNumberLine.text()
-            self.user.get_phone_number(self.phoneNumberLineText)
-            if self.phonenumberwarning.text() != ' ':
-                self.phonenumberwarning.setText(' ')
-        except ValueError as e:
-            error = str(e)
-            self.phonenumberwarning.setText(error)
+        self._validate_field(self.user.get_phone_number,self.phoneNumberLine.text(),self.phonenumberwarning)
 
     def get_user_name(self):
-        try:
-            self.userNameLineText = self.userNameLine.text()
-            self.user.get_username(self.userNameLineText, self.window.db)
-            if self.usernamewarning.text != ' ':
-                self.usernamewarning.setText(' ')
-        except ValueError as e:
-            error = str(e)
-            self.usernamewarning.setText(error)
+        self._validate_field(self.user.get_username,self.userNameLine.text(),self.usernamewarning,self.window.db)
 
     def get_password(self):
-        try:
-            self.passwordLineText = self.passwordLine.text()
-            self.user.get_password(self.passwordLineText)
-            if self.passwordwarning.text != ' ':
-                self.passwordwarning.setText(' ')
-        except ValueError as e:
-            error = str(e)
-            self.passwordwarning.setText(error)
+        self._validate_field(self.user.get_password,self.passwordLine.text(),self.passwordwarning)
 
     def check_repeated_password(self):
-        try:
-            self.repeatedpasswordLineText = self.repeatedpasswordLine.text()
-            passwordIsSet = self.user.check_repeated_password(
-                self.repeatedpasswordLineText)
-            if self.repeatedpasswordwarning.text != ' ':
-                self.repeatedpasswordwarning.setText(' ')
-        except ValueError as e:
-            error = str(e)
-            self.repeatedpasswordwarning.setText(error)
+        self._validate_field(self.user.check_repeated_password,self.repeatedpasswordLine.text(),self.repeatedpasswordwarning)
 
     def get_city(self):
         self.user.get_city(self.cityCombobox.currentText())
 
     def get_email(self):
-        try:
-            self.emailLineText = self.emailLine.text()
-            self.user.get_email(self.emailLineText, self.window.db)
-            if self.emailwarning.text != ' ':
-                self.emailwarning.setText(' ')
-        except ValueError as e:
-            error = str(e)
-            self.emailwarning.setText(error)
+        self._validate_field(self.user.get_email, self.emailLine.text(), self.emailwarning, self.window.db)
 
     def get_birth_date(self):
-        try:
-            self.dateLineText = str(self.dateLine.text())
-            self.user.get_birth_date(self.dateLineText)
-            if self.datewarning.text != ' ':
-                self.datewarning.setText(' ')
-        except ValueError as e:
-            error = str(e)
-            self.datewarning.setText(error)
+        self._validate_field(self.user.get_birth_date, self.dateLine.text(), self.datewarning)
 
     def get_security_questions_answer(self):
         self.securityLineText = self.securityLine.text()
