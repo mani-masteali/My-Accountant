@@ -1,9 +1,9 @@
+from __future__ import annotations
 import re
 from datetime import datetime
 from PyQt6.QtWidgets import QWidget, QGridLayout, QLabel, QLineEdit, QPushButton, QComboBox
 from PyQt6.QtGui import QStandardItem
 from db import DataBase
-from __future__ import annotations
 class User:
     def __init__(self):
         self.firstName = None
