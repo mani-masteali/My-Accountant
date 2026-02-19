@@ -9,7 +9,7 @@ from PyQt6.QtGui import QIcon, QStandardItemModel
 
 from db import DataBase
 from logic import User, RegisterFine, Category, Search, Report
-
+from db import FineRepository, CategoryRepository
 
 class MyWindow(QMainWindow):
     def __init__(self):
@@ -498,9 +498,14 @@ class RegisterIncomeMenu:
         description = self.descriptionLineEdit.text()
 
         try:
-            register_fine = RegisterFine(self.window.db)
-            register_fine.create_tables()
-            register_fine.register_income(float(amount), date, category, description)
+            repo = FineRepository(self.window.db)
+            register_fine = RegisterFine(repo)
+            user_name = (
+                self.window.signupLoginMenu.usernamelogin 
+                if self.window.signupLoginMenu.logining 
+                else self.window.signupLoginMenu.user.userName
+            )
+            register_fine.register_income(user_name, float(amount), date, category, description)
             self.descriptionWarning.setText('Income registered successfully')
         except ValueError as e:
             self.descriptionWarning.setText(str(e))
@@ -873,7 +878,8 @@ class CategoryMenu:
 
         try:
             category.validate_name()
-            category.save_to_database(self.window.db, category_type)
+            repo = CategoryRepository(self.window.db)
+            category.save_to_database(repo, category_type)
             self.categoryNameWarning.setText('Category added successfully')
         except ValueError as e:
             self.categoryNameWarning.setText(str(e))
@@ -1270,14 +1276,14 @@ class RegisterExpenseMenu:
         description = self.descriptionLineEdit.text()
 
         try:
-            register_fine = RegisterFine(self.window.db)
-            register_fine.create_tables()
-            if self.window.signupLoginMenu.logining:
-                register_fine.register_income(float(
-                    amount), date, category, description, self.window.signupLoginMenu.usernamelogin)
-            elif self.window.signupLoginMenu.singuping:
-                register_fine.register_income(float(
-                    amount), date, category, description, self.window.signupLoginMenu.user.userName)
+            repo = FineRepository(self.window.db)
+            service = RegisterFine(repo)
+            username = (
+                self.window.signupLoginMenu.usernamelogin 
+                if self.window.signupLoginMenu.logining 
+                else self.window.signupLoginMenu.user.userName
+            )
+            service.register_expense(username, float(amount), date, category, description)
             self.descriptionWarning.setText('Expense registered successfully')
         except ValueError as e:
             self.descriptionWarning.setText(str(e))

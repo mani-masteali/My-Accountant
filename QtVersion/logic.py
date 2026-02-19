@@ -4,6 +4,8 @@ from datetime import datetime
 from PyQt6.QtWidgets import QWidget, QGridLayout, QLabel, QLineEdit, QPushButton, QComboBox
 from PyQt6.QtGui import QStandardItem
 from db import DataBase
+from db import FineRepository
+from db import CategoryRepository
 class User:
     def __init__(self):
         self.firstName = None
@@ -135,30 +137,23 @@ class User:
         database.commit()
 
 class RegisterFine:
-    def __init__(self, db):
-        self.db = db
+    def __init__(self, fine_repo: FineRepository):
+        self.fine_repo = fine_repo
+        self.fine_repo.create_tables()
 
-    def register_income(self, amount, date, category, description):
+    def register_income(self, user_name, amount, date, category, description):
         self.validate_amount(amount)
         self.validate_date(date)
         self.validate_category(category)
         self.validate_description(description)
+        self.fine_repo.insert_income(user_name, amount, date, category, description)
 
-        cursor = self.db.cursor
-        cursor.execute("INSERT INTO income_fine (amount, date, category, description) VALUES (?,?,?,?)",
-                    (amount, date, category, description))
-        self.db.commit()
-
-    def register_expense(self, amount, date, category, description):
+    def register_expense(self, user_name, amount, date, category, description):
         self.validate_amount(amount)
         self.validate_date(date)
         self.validate_category(category)
         self.validate_description(description)
-
-        cursor = self.db.cursor
-        cursor.execute("INSERT INTO expense_fine (amount, date, category, description) VALUES (?,?,?,?)",
-                    (amount, date, category, description))
-        self.db.commit()
+        self.fine_repo.insert_expense(user_name, amount, date, category, description)
 
     def validate_amount(self, amount):
         if not amount:
@@ -184,25 +179,6 @@ class RegisterFine:
         if description and len(description) > 100:
             raise ValueError("Description must be 100 characters or less")
 
-    def create_tables(self):
-        cursor = self.db.cursor
-        cursor.execute(f"""
-            CREATE TABLE IF NOT EXISTS income_fine (
-                amount REAL,
-                date TEXT,
-                category TEXT,
-                description TEXT
-            )
-        """)
-        cursor.execute(f"""
-            CREATE TABLE IF NOT EXISTS expense_fine (
-                amount REAL,
-                date TEXT,
-                category TEXT,
-                description TEXT
-            )
-        """)
-        self.db.commit()
 
 class Category:
     def __init__(self, name):
@@ -218,14 +194,10 @@ class Category:
             raise ValueError(
                 "Category name can only contain English letters and numbers")
 
-    def save_to_database(self, db, category_type):
-        cursor = db.cursor
-        cursor.execute(f"SELECT name FROM {category_type} WHERE name=?", (self.name,))
-        if cursor.fetchone():
+    def save_to_database(self, category_repo: CategoryRepository, category_type: str):
+        if category_repo.category_exists(category_type, self.name):
             raise ValueError("Category name already exists")
-        cursor.execute(
-            f"INSERT INTO {category_type} (name) VALUES (?)", (self.name,))
-        db.commit()
+        category_repo.insert_category(category_type, self.name)
 
 class Search:
     def __init__(self, menu: SearchMenu):
