@@ -1,146 +1,15 @@
-from PyQt6.QtWidgets import QApplication, QMainWindow, QPushButton, QLabel, QLineEdit, QGridLayout, QWidget, QComboBox,QRadioButton,QButtonGroup,QTableView
-from PyQt6.QtCore import Qt, QAbstractTableModel,QVariant,QTimer
-from PyQt6.QtGui import QStandardItemModel,QStandardItem
-from datetime import datetime
-import sqlite3
 import sys
-import re
-from PyQt6.QtGui import QIcon
-app = QApplication(sys.argv)
 
-# to define a user, we had to define a class
+from PyQt6.QtWidgets import (
+    QMainWindow, QPushButton, QLabel, QLineEdit, QGridLayout, QWidget,
+    QComboBox, QRadioButton, QButtonGroup, QTableView, QVBoxLayout
+)
+from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtGui import QIcon, QStandardItemModel
 
-
-class User:
-    def __init__(self):
-        self.firstName = None
-        self.lastName = None
-        self.nationalId = None
-        self.phoneNumber = None
-        self.userName = None
-        self.password = None
-        self.city = None
-        self.email = None
-        self.birthDate = None
-        self.securityQAnswer = None
-    # بررسی معتبر بودن اسم کوچک و تعریف آن برای کاربر
-
-    def get_first_name(self, firstName):
-        if len(re.findall('[a-z]', firstName))+len(re.findall('[A-Z]', firstName)) == len(firstName):
-            self.firstName = firstName
-        else:
-            raise ValueError(
-                'first name must only consist of English letters.')
-    # بررسی معتبر بودن نام خانوادگی و تعریف آن برای کاربر
-
-    def get_last_name(self, lastName):
-        if len(re.findall('[a-z]', lastName))+len(re.findall('[A-Z]', lastName)) == len(lastName):
-            self.lastName = lastName
-        else:
-            raise ValueError('last name must only consist of English letters.')
-    # بررسی معتبر بودن کد ملی و تعریف آن برای کاربر
-
-    def get_code_meli(self, nationalId):
-        if len(nationalId) == 10:
-            if len(re.findall('[0-9]', nationalId)) == len(nationalId):
-                self.nationalId = nationalId
-            else:
-                raise ValueError('National ID only has numbers in it.')
-        else:
-            raise ValueError('National ID must have ten numbers.')
-    # بررسی معتبر بودن شماره تلفن و تعریف آن برای کاربر
-
-    def get_phone_number(self, phoneNumber):
-        if len(phoneNumber) == 11 and len(re.findall('[0-9]', phoneNumber)) == len(phoneNumber) and bool(re.search('^09.', phoneNumber)) == True:
-            self.phoneNumber = phoneNumber
-        elif len(phoneNumber) != 11:
-            raise ValueError('phone number must have eleven digits.')
-        elif len(re.findall('[0-9]', phoneNumber)) != len(phoneNumber):
-            raise ValueError('phone number must only consist of digits.')
-        elif bool(re.search('^09.', phoneNumber)) == False:
-            raise ValueError('[red]phone number must begin with 09.')
-    # گرفتن یوزرنیم از کاربر  که می تواند به هر شکل دلخواه باشد.
-
-    def get_username(self, userName, database):
-        database.cursor.execute(
-            "SELECT user_name FROM users WHERE user_name=?", (userName,))
-        result = database.cursor.fetchone()
-        if result:
-            raise ValueError("This user name already exists")
-        else:
-            self.userName = userName
-    # گرفتن پسورد در صورتی که شرایط دلخواه مسئله را رعایت کند
-
-    def get_password(self, password):
-        if len(password) >= 6 and len(re.findall('[a-z]', password)) >= 1 and len(re.findall('[A-Z]', password)) >= 1 and len(re.findall("[!#$%&'()*+,-./:;<=>?@[\]^_`{|}~]", password)) >= 1 and len(re.findall('[0-9]', password)) >= 1:
-            self.password = password
-        elif len(password) < 6:
-            raise ValueError('password must be at least 6 characters long.')
-        elif len(re.findall('[a-z]', password)) < 1:
-            raise ValueError(
-                'password must contain at least one lowercase letter.')
-        elif len(re.findall('[A-Z]', password)) < 1:
-            raise ValueError(
-                'password must contain at least one uppercase letter.')
-        elif len(re.findall("!#$%&'()*+,-./:;<=>?@[\]^_`{|}~"), password) < 1:
-            raise ValueError('password must contain at least one digit.')
-        elif len(re.findall('[0-9]', password)) < 1:
-            raise ValueError(
-                'password must contain at least one special character (!#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~).')
-    # برای تایید رمز عبور
-
-    def check_repeated_password(self, repeatedPassword):
-        if repeatedPassword != self.password:
-            raise ValueError('passwords do not match')
-        else:
-            return 0
-    # گرفتن نام شهر از کاربر از لیست شهر های تعریف شده در رابط گرافیکی
-
-    def get_city(self, city):
-        self.city = city
-    # بررسی معتبر بودن ایمیل و گرفتن از کاربر
-
-    def get_email(self, email, database):
-        database.cursor.execute(
-            "SELECT email FROM users WHERE email=?", (email,))
-        result = database.cursor.fetchone()
-        if result:
-            raise ValueError("This email already exists")
-        else:
-            if bool(re.findall(r'[A-Za-z0-9]+@(gmail|yahoo)\.com', email)) == True:
-                self.email = email
-            else:
-                raise ValueError('Invalid email')
-
-    def get_birth_date(self, birthDate):
-        if bool(re.findall('[1-2][0-9][0-9][0-9]/[0-1][0-9]/[0-3][0-9]', birthDate)) == True:
-            year = birthDate[0:4]
-            month = birthDate[5:7]
-            day = birthDate[8:10]
-            if int(year) >= 1920 and int(year) <= 2005 and 1 <= int(month) <= 12:
-                max_days = {1: 31, 2: 29, 3: 31, 4: 30, 5: 31,
-                            6: 30, 7: 31, 8: 31, 9: 30, 10: 31, 11: 30, 12: 31}
-                if 1 <= int(day) <= max_days[int(month)]:
-                    self.birthDate = birthDate
-                else:
-                    raise ValueError(f'invalid day. this month has only {max_days[int(month)]}')
-            elif int(year) < 1920 or int(year) > 2005:
-                raise ValueError(f'birth year must be between 1920 and 2005')
-            elif int(month) < 1 or int(month) > 12:
-                raise ValueError(f'month must be between 1 and 12')
-        else:
-            raise ValueError(f'invalid birth date format')
-    # گرفتن پاسخ سوال امنیتی که از کاربر پرسیده می شود
-
-    def get_security_questions_answer(self, answer):
-        self.securityQAnswer = answer
-    # اطلاعات کاربر در یک دیتابیس ذخیره می شود
-
-    def save_database(self, database):
-        database.cursor.execute("INSERT INTO users(first_name, last_name, national_id, phone_number, user_name, password, city, email, birth_date, security_q_answer) VALUES(?,?,?,?,?,?,?,?,?,?)",
-                                (self.firstName, self.lastName, self.nationalId, self.phoneNumber, self.userName, self.password, self.city, self.email, self.birthDate, self.securityQAnswer))
-        database.commit()
-
+from db import DataBase
+from logic import User, RegisterFine, Category, Search, Report
+from db import FineRepository, CategoryRepository
 
 class MyWindow(QMainWindow):
     def __init__(self):
@@ -153,373 +22,6 @@ class MyWindow(QMainWindow):
         central_widget = QWidget(self)
         self.setCentralWidget(central_widget)
         self.signupLoginMenu = SignupLoginMenu(self)
-
-
-class RegisterFine:
-    def __init__(self, db):
-        self.db = db
-
-    def register_income(self, amount, date, category, description):
-        self.validate_amount(amount)
-        self.validate_date(date)
-        self.validate_category(category)
-        self.validate_description(description)
-
-        cursor = self.db.cursor
-        cursor.execute("INSERT INTO income_fine (amount, date, category, description) VALUES (?,?,?,?)",
-                    (amount, date, category, description))
-        self.db.commit()
-
-    def register_expense(self, amount, date, category, description):
-        self.validate_amount(amount)
-        self.validate_date(date)
-        self.validate_category(category)
-        self.validate_description(description)
-
-        cursor = self.db.cursor()
-        cursor.execute("INSERT INTO expense_fine (amount, date, category, description) VALUES (?,?,?,?)",
-                    (amount, date, category, description))
-        self.db.commit()
-
-    def validate_amount(self, amount):
-        if not amount:
-            raise ValueError("Amount cannot be empty")
-        if not isinstance(amount, (int, float)):
-            raise ValueError("Amount must be a number")
-        if amount <= 0:
-            raise ValueError("Amount must be positive")
-
-    def validate_date(self, date):
-        if not date:
-            raise ValueError("Date cannot be empty")
-        try:
-            datetime.strptime(date, '%Y/%m/%d')
-        except ValueError:
-            raise ValueError("Invalid date format. Must be yyyy/mm/dd")
-
-    def validate_category(self, category):
-        if not category:
-            raise ValueError("Category cannot be empty")
-
-    def validate_description(self, description):
-        if description and len(description) > 100:
-            raise ValueError("Description must be 100 characters or less")
-
-    def create_tables(self):
-        cursor = self.db.cursor
-        cursor.execute(f"""
-            CREATE TABLE IF NOT EXISTS income_fine (
-                amount REAL,
-                date TEXT,
-                category TEXT,
-                description TEXT
-            )
-        """)
-        cursor.execute(f"""
-            CREATE TABLE IF NOT EXISTS expense_fine (
-                amount REAL,
-                date TEXT,
-                category TEXT,
-                description TEXT
-            )
-        """)
-        self.db.commit()
-
-
-class RegisterIncomeMenu:
-    def __init__(self, window: MyWindow):
-        self.window = window
-        self.init_ui()
-
-    def init_ui(self):
-        self.window.signupLoginMenu.mainMenu.hide_menu()
-        central_widget = QWidget(self.window)
-        self.window.setCentralWidget(central_widget)
-        self.layout = QGridLayout(central_widget)
-
-        self.amountLabel = QLabel('Enter amount: ', self.window)
-        self.amountLineEdit = QLineEdit(self.window)
-        self.amountWarning = QLabel(' ', self.window)
-
-        self.dateLabel = QLabel('Enter date (yyyy/mm/dd): ', self.window)
-        self.dateLineEdit = QLineEdit(self.window)
-        self.dateWarning = QLabel(' ', self.window)
-
-        self.categoryLabel = QLabel('Select category: ', self.window)
-        self.categoryComboBox = QComboBox(self.window)
-        self.load_income_categories()
-
-        self.descriptionLabel = QLabel('Enter description: ', self.window)
-        self.descriptionLineEdit = QLineEdit(self.window)
-        self.descriptionWarning = QLabel(' ', self.window)
-
-        self.submitButton = QPushButton('Submit', self.window)
-        self.submitButton.clicked.connect(self.submit_income)
-        self.backButton = QPushButton('Back', self.window)
-        self.backButton.clicked.connect(self.back)
-
-        self.layout.addWidget(self.amountLabel, 0, 0)
-        self.layout.addWidget(self.amountLineEdit, 0, 1)
-        self.layout.addWidget(self.amountWarning, 0, 2)
-        self.layout.addWidget(self.dateLabel, 1, 0)
-        self.layout.addWidget(self.dateLineEdit, 1, 1)
-        self.layout.addWidget(self.dateWarning, 1, 2)
-        self.layout.addWidget(self.categoryLabel, 2, 0)
-        self.layout.addWidget(self.categoryComboBox, 2, 1)
-        self.layout.addWidget(self.descriptionLabel, 3, 0)
-        self.layout.addWidget(self.descriptionLineEdit, 3, 1)
-        self.layout.addWidget(self.descriptionWarning, 3, 2)
-        self.layout.addWidget(self.submitButton, 4, 0, 1, 3)
-        self.layout.addWidget(self.backButton, 5, 0, 1, 3)
-
-    def load_income_categories(self):
-        cursor = self.window.db.cursor
-        cursor.execute("SELECT name FROM income_categories")
-        categories = [row[0] for row in cursor.fetchall()]
-        self.categoryComboBox.addItems(categories)
-
-    def submit_income(self):
-        amount = self.amountLineEdit.text()
-        date = self.dateLineEdit.text()
-        category = self.categoryComboBox.currentText()
-        description = self.descriptionLineEdit.text()
-
-        try:
-            register_fine = RegisterFine(self.window.db)
-            register_fine.create_tables()
-            register_fine.register_income(float(amount), date, category, description)
-            self.descriptionWarning.setText('Income registered successfully')
-        except ValueError as e:
-            self.descriptionWarning.setText(str(e))
-
-    def back(self):
-        self.amountLabel.setVisible(False)
-        self.amountLineEdit.setVisible(False)
-        self.amountWarning.setVisible(False)
-        self.dateLabel.setVisible(False)
-        self.dateLineEdit.setVisible(False)
-        self.dateWarning.setVisible(False)
-        self.categoryLabel.setVisible(False)
-        self.categoryComboBox.setVisible(False)
-        self.descriptionLabel.setVisible(False)
-        self.descriptionLineEdit.setVisible(False)
-        self.descriptionWarning.setVisible(False)
-        self.submitButton.setVisible(False)
-        self.backButton.setVisible(False)
-        self.mainMenu = MainMenu(self.window)
-
-
-class RegisterExpenseMenu:
-    def __init__(self, window: MyWindow):
-        self.window = window
-        self.init_ui()
-
-    def init_ui(self):
-        self.window.signupLoginMenu.mainMenu.hide_menu()
-        central_widget = QWidget(self.window)
-        self.window.setCentralWidget(central_widget)
-        self.layout = QGridLayout(central_widget)
-
-        self.amountLabel = QLabel('Enter amount: ', self.window)
-        self.amountLineEdit = QLineEdit(self.window)
-        self.amountWarning = QLabel(' ', self.window)
-
-        self.dateLabel = QLabel('Enter date (yyyy/mm/dd): ', self.window)
-        self.dateLineEdit = QLineEdit(self.window)
-        self.dateWarning = QLabel(' ', self.window)
-
-        self.categoryLabel = QLabel('Select category: ', self.window)
-        self.categoryComboBox = QComboBox(self.window)
-        self.load_expense_categories()
-
-        self.descriptionLabel = QLabel('Enter description: ', self.window)
-        self.descriptionLineEdit = QLineEdit(self.window)
-        self.descriptionWarning = QLabel(' ', self.window)
-
-        self.submitButton = QPushButton('Submit', self.window)
-        self.submitButton.clicked.connect(self.submit_expense)
-        self.backButton = QPushButton('Back', self.window)
-        self.backButton.clicked.connect(self.back)
-
-        self.layout.addWidget(self.amountLabel, 0, 0)
-        self.layout.addWidget(self.amountLineEdit, 0, 1)
-        self.layout.addWidget(self.amountWarning, 0, 2)
-        self.layout.addWidget(self.dateLabel, 1, 0)
-        self.layout.addWidget(self.dateLineEdit, 1, 1)
-        self.layout.addWidget(self.dateWarning, 1, 2)
-        self.layout.addWidget(self.categoryLabel, 2, 0)
-        self.layout.addWidget(self.categoryComboBox, 2, 1)
-        self.layout.addWidget(self.descriptionLabel, 3, 0)
-        self.layout.addWidget(self.descriptionLineEdit, 3, 1)
-        self.layout.addWidget(self.descriptionWarning, 3, 2)
-        self.layout.addWidget(self.submitButton, 4, 0, 1, 3)
-        self.layout.addWidget(self.backButton, 5, 0, 1, 3)
-
-    def load_expense_categories(self):
-        cursor = self.window.db.cursor
-        cursor.execute("SELECT name FROM expense_categories")
-        categories = [row[0] for row in cursor.fetchall()]
-        self.categoryComboBox.addItems(categories)
-
-    def submit_expense(self):
-        amount = self.amountLineEdit.text()
-        date = self.dateLineEdit.text()
-        category = self.categoryComboBox.currentText()
-        description = self.descriptionLineEdit.text()
-
-        try:
-            register_fine = RegisterFine(self.window.db)
-            register_fine.create_tables()
-            if self.window.signupLoginMenu.logining:
-                register_fine.register_income(float(
-                    amount), date, category, description, self.window.signupLoginMenu.usernamelogin)
-            elif self.window.signupLoginMenu.singuping:
-                register_fine.register_income(float(
-                    amount), date, category, description, self.window.signupLoginMenu.user.userName)
-            self.descriptionWarning.setText('Expense registered successfully')
-        except ValueError as e:
-            self.descriptionWarning.setText(str(e))
-
-    def back(self):
-        self.amountLabel.setVisible(False)
-        self.amountLineEdit.setVisible(False)
-        self.amountWarning.setVisible(False)
-        self.dateLabel.setVisible(False)
-        self.dateLineEdit.setVisible(False)
-        self.dateWarning.setVisible(False)
-        self.categoryLabel.setVisible(False)
-        self.categoryComboBox.setVisible(False)
-        self.descriptionLabel.setVisible(False)
-        self.descriptionLineEdit.setVisible(False)
-        self.descriptionWarning.setVisible(False)
-        self.submitButton.setVisible(False)
-        self.backButton.setVisible(False)
-        self.mainMenu = MainMenu(self.window)
-
-
-# class Setting:
-#     def __init__(self, window: MyWindow):
-#         self.window = window
-
-#     def change_user_profile(self):
-#         pass
-
-#     def delete_user_profile(self):
-#         # implement deleting user profile logic here
-#         pass
-
-#     def delete_incomes(self):
-#         # implement deleting incomes logic here
-#         pass
-
-#     def delete_expenses(self):
-#         # implement deleting expenses logic here
-#         pass
-
-
-class SettingMenu:
-    def __init__(self, window: MyWindow):
-        self.window = window
-        self.init_ui()
-
-    def init_ui(self):
-        self.window.signupLoginMenu.mainMenu.hide_menu()
-        self.central_widget = QWidget(self.window)
-        self.window.setCentralWidget(self.central_widget)
-        self.layout = QVBoxLayout(self.central_widget)
-
-        self.changeUserProfileButton = QPushButton(
-            "Change user profile", self.window)
-        self.changeUserProfileButton.clicked.connect(self.change_user_profile)
-        self.layout.addWidget(self.changeUserProfileButton)
-
-        self.deleteUserProfileButton = QPushButton(
-            "Delete user Profile", self.window)
-        self.deleteUserProfileButton.clicked.connect(self.delete_user_profile)
-        self.layout.addWidget(self.deleteUserProfileButton)
-
-        self.deleteIncomesButton = QPushButton("Delete incomes", self.window)
-        self.deleteIncomesButton.clicked.connect(self.delete_incomes)
-        self.layout.addWidget(self.deleteIncomesButton)
-
-        self.deleteExpensesButton = QPushButton("Delete expenses", self.window)
-        self.deleteExpensesButton.clicked.connect(self.delete_expenses)
-        self.layout.addWidget(self.deleteExpensesButton)
-
-        self.mainMenuButton = QPushButton("Main menu", self.window)
-        self.mainMenuButton.clicked.connect(self.back)
-        self.layout.addWidget(self.mainMenuButton)
-
-        # Set the geometry for the central widget
-        self.central_widget.setGeometry(100, 100, 300, 200)
-        self.window.show()  # Show the window
-
-    def change_user_profile(self):
-        self.profile = ChangeUserProfile(self.window)
-        # implement changing user profile logic here
-        pass
-
-    def delete_user_profile(self):
-        # implement deleting user profile logic here
-        pass
-
-    def delete_incomes(self):
-        # implement deleting incomes logic here
-        pass
-
-    def delete_expenses(self):
-        # implement deleting expenses logic here
-        pass
-
-    def back(self):
-        self.changeUserProfileButton.setVisible(False)
-        self.deleteUserProfileButton.setVisible(False)
-        self.deleteIncomesButton.setVisible(False)
-        self.deleteExpensesButton.setVisible(False)
-        self.mainMenuButton.setVisible(False)
-        self.mainMenu = MainMenu(self.window)
-
-
-class Category:
-    def __init__(self, name):
-        self.name = name
-
-    def validate_name(self):
-        if not self.name:
-            raise ValueError("Category name cannot be empty")
-        if len(self.name) > 15:
-            raise ValueError(
-                "Category name cannot be longer than 15 characters")
-        if not re.match("^[A-Za-z0-9]*$", self.name):
-            raise ValueError(
-                "Category name can only contain English letters and numbers")
-
-    def save_to_database(self, db, category_type):
-        cursor = db.cursor
-        cursor.execute(f"SELECT name FROM {category_type} WHERE name=?", (self.name,))
-        if cursor.fetchone():
-            raise ValueError("Category name already exists")
-        cursor.execute(
-            f"INSERT INTO {category_type} (name) VALUES (?)", (self.name,))
-        db.commit()
-
-
-class DataBase:
-    def __init__(self):
-        self.db = sqlite3.connect("ElmosBalance.db")
-        self.cursor = self.db.cursor()
-        self.create_data_base()
-
-    def commit(self):
-        self.db.commit()
-
-    def create_data_base(self):
-        self.cursor.execute("CREATE TABLE IF NOT EXISTS users (first_name TEXT, last_name TEXT, national_id TEXT, phone_number TEXT, user_name TEXT, password TEXT, city TEXT, email TEXT, birth_date TEXT, security_q_answer TEXT)")
-        self.cursor.execute(
-            "CREATE TABLE IF NOT EXISTS income_categories (name TEXT PRIMARY KEY)")
-        self.cursor.execute(
-            "CREATE TABLE IF NOT EXISTS expense_categories (name TEXT PRIMARY KEY)")
-
 
 class SignupLoginMenu():
     def __init__(self, window: MyWindow):
@@ -665,100 +167,44 @@ class SignupLoginMenu():
         self.layout.addWidget(self.securityLabel, 10, 0)
         self.layout.addWidget(self.securityLine, 10, 1)
         self.layout.addWidget(self.submit, 11, 0, 1, 3)
+    
+    def _validate_field(self,getter,value,warning_label:QLabel,*extra_args):
+        try:
+            getter(value,*extra_args)
+            if warning_label.text().strip():
+                warning_label.setText(" ")
+        except ValueError as e:
+            warning_label.setText(str(e))
 
     def get_first_name(self):
-        try:
-            self.firstNameLineText = self.firstNameLine.text()
-            self.user.get_first_name(self.firstNameLineText)
-            if self.firstnamewarning.text() != ' ':
-                self.firstnamewarning.setText(' ')
-        except ValueError as e:
-            error = str(e)
-            self.firstnamewarning.setText(error)
+        self._validate_field(self.user.get_first_name,self.firstNameLine.text(),self.firstnamewarning)
 
     def get_last_name(self):
-        try:
-            self.lastNameLineText = self.lastNameLine.text()
-            self.user.get_last_name(self.lastNameLineText)
-            if self.lastnamewarning.text() != ' ':
-                self.lastnamewarning.setText(' ')
-        except ValueError as e:
-            error = str(e)
-            self.lastnamewarning.setText(error)
+        self._validate_field(self.user.get_last_name,self.lastNameLine.text(),self.lastnamewarning)
 
     def get_code_meli(self):
-        try:
-            self.nationalIDLineText = self.nationalIDLine.text()
-            self.user.get_code_meli(self.nationalIDLineText)
-            if self.nationalIDwarning.text() != ' ':
-                self.nationalIDwarning.setText(' ')
-        except ValueError as e:
-            error = str(e)
-            self.nationalIDwarning.setText(error)
+        self._validate_field(self.user.get_code_meli,self.nationalIDLine.text(),self.nationalIDwarning)
 
     def get_phone_number(self):
-        try:
-            self.phoneNumberLineText = self.phoneNumberLine.text()
-            self.user.get_phone_number(self.phoneNumberLineText)
-            if self.phonenumberwarning.text() != ' ':
-                self.phonenumberwarning.setText(' ')
-        except ValueError as e:
-            error = str(e)
-            self.phonenumberwarning.setText(error)
+        self._validate_field(self.user.get_phone_number,self.phoneNumberLine.text(),self.phonenumberwarning)
 
     def get_user_name(self):
-        try:
-            self.userNameLineText = self.userNameLine.text()
-            self.user.get_username(self.userNameLineText, self.window.db)
-            if self.usernamewarning.text != ' ':
-                self.usernamewarning.setText(' ')
-        except ValueError as e:
-            error = str(e)
-            self.usernamewarning.setText(error)
+        self._validate_field(self.user.get_username,self.userNameLine.text(),self.usernamewarning,self.window.db)
 
     def get_password(self):
-        try:
-            self.passwordLineText = self.passwordLine.text()
-            self.user.get_password(self.passwordLineText)
-            if self.passwordwarning.text != ' ':
-                self.passwordwarning.setText(' ')
-        except ValueError as e:
-            error = str(e)
-            self.passwordwarning.setText(error)
+        self._validate_field(self.user.get_password,self.passwordLine.text(),self.passwordwarning)
 
     def check_repeated_password(self):
-        try:
-            self.repeatedpasswordLineText = self.repeatedpasswordLine.text()
-            passwordIsSet = self.user.check_repeated_password(
-                self.repeatedpasswordLineText)
-            if self.repeatedpasswordwarning.text != ' ':
-                self.repeatedpasswordwarning.setText(' ')
-        except ValueError as e:
-            error = str(e)
-            self.repeatedpasswordwarning.setText(error)
+        self._validate_field(self.user.check_repeated_password,self.repeatedpasswordLine.text(),self.repeatedpasswordwarning)
 
     def get_city(self):
         self.user.get_city(self.cityCombobox.currentText())
 
     def get_email(self):
-        try:
-            self.emailLineText = self.emailLine.text()
-            self.user.get_email(self.emailLineText, self.window.db)
-            if self.emailwarning.text != ' ':
-                self.emailwarning.setText(' ')
-        except ValueError as e:
-            error = str(e)
-            self.emailwarning.setText(error)
+        self._validate_field(self.user.get_email, self.emailLine.text(), self.emailwarning, self.window.db)
 
     def get_birth_date(self):
-        try:
-            self.dateLineText = str(self.dateLine.text())
-            self.user.get_birth_date(self.dateLineText)
-            if self.datewarning.text != ' ':
-                self.datewarning.setText(' ')
-        except ValueError as e:
-            error = str(e)
-            self.datewarning.setText(error)
+        self._validate_field(self.user.get_birth_date, self.dateLine.text(), self.datewarning)
 
     def get_security_questions_answer(self):
         self.securityLineText = self.securityLine.text()
@@ -901,6 +347,184 @@ class SignupLoginMenu():
         else:
             self.forgetwarning.setText('your security answer was wrong.')
 
+class MainMenu():
+    def __init__(self, window: MyWindow):
+        self.window=window
+        self.show_main_menu()
+
+    def register_income(self):
+        self.hide_menu()
+        self.registerIncomeMenu=RegisterIncomeMenu(self.window)
+
+    def register_expense(self):
+        self.hide_menu()
+        self.registerIncomeMenu=RegisterExpenseMenu(self.window)
+
+    def show_categories(self):
+        self.hide_menu()
+        self.categoryMenu=CategoryMenu(self.window)
+
+    def show_search(self):
+        self.hide_menu()
+        self.searchMenu=SearchMenu(self.window)
+
+    def show_reporting(self):
+        self.hide_menu()
+        self.reportMenu=ReportMenu(self.window)
+
+    def show_settings(self):
+        self.hide_menu()
+        self.settingMenu=SettingMenu(self.window)
+
+    def show_main_menu(self):
+        # Welcome label
+        self.welcominglabel=QLabel('Welcome to elmos balance.', self.window)
+        self.welcominglabel.setGeometry(150, 100, 400, 200)
+        self.welcominglabel.show()
+
+        # Register Income button
+        self.registerIncomeButton=QPushButton('Register Income', self.window)
+        self.registerIncomeButton.setGeometry(100, 250, 200, 50)
+        self.registerIncomeButton.clicked.connect(self.register_income)
+        self.registerIncomeButton.show()
+
+        # Register Expense button
+        self.registerExpenseButton=QPushButton(
+            'Register Expense', self.window)
+        self.registerExpenseButton.setGeometry(350, 250, 200, 50)
+        self.registerExpenseButton.clicked.connect(self.register_expense)
+        self.registerExpenseButton.show()
+
+        # Categories button
+        self.categoriesButton=QPushButton('Categories', self.window)
+        self.categoriesButton.setGeometry(100, 350, 200, 50)
+        self.categoriesButton.clicked.connect(self.show_categories)
+        self.categoriesButton.show()
+
+        # Search button
+        self.searchButton=QPushButton('Search', self.window)
+        self.searchButton.setGeometry(350, 350, 200, 50)
+        self.searchButton.clicked.connect(self.show_search)
+        self.searchButton.show()
+
+        # Reporting button
+        self.reportingButton=QPushButton('Reporting', self.window)
+        self.reportingButton.setGeometry(100, 450, 200, 50)
+        self.reportingButton.clicked.connect(self.show_reporting)
+        self.reportingButton.show()
+
+        # Settings button
+        self.settingsButton=QPushButton('Settings', self.window)
+        self.settingsButton.setGeometry(350, 450, 200, 50)
+        self.settingsButton.clicked.connect(self.show_settings)
+        self.settingsButton.show()
+
+        # Exit button
+        self.exitButton=QPushButton('Exit', self.window)
+        self.exitButton.setGeometry(250, 550, 200, 50)
+        self.exitButton.clicked.connect(self.exit_app)
+        self.exitButton.show()
+
+    def exit_app(self):
+        # Implement action for Exit button
+        self.window.close()
+
+    def hide_menu(self):
+        self.welcominglabel.setVisible(False)
+        self.registerIncomeButton.setVisible(False)
+        self.registerExpenseButton.setVisible(False)
+        self.categoriesButton.setVisible(False)
+        self.searchButton.setVisible(False)
+        self.reportingButton.setVisible(False)
+        self.settingsButton.setVisible(False)
+        self.exitButton.setVisible(False)
+
+class RegisterIncomeMenu:
+    def __init__(self, window: MyWindow):
+        self.window = window
+        self.init_ui()
+
+    def init_ui(self):
+        self.window.signupLoginMenu.mainMenu.hide_menu()
+        central_widget = QWidget(self.window)
+        self.window.setCentralWidget(central_widget)
+        self.layout = QGridLayout(central_widget)
+
+        self.amountLabel = QLabel('Enter amount: ', self.window)
+        self.amountLineEdit = QLineEdit(self.window)
+        self.amountWarning = QLabel(' ', self.window)
+
+        self.dateLabel = QLabel('Enter date (yyyy/mm/dd): ', self.window)
+        self.dateLineEdit = QLineEdit(self.window)
+        self.dateWarning = QLabel(' ', self.window)
+
+        self.categoryLabel = QLabel('Select category: ', self.window)
+        self.categoryComboBox = QComboBox(self.window)
+        self.load_income_categories()
+
+        self.descriptionLabel = QLabel('Enter description: ', self.window)
+        self.descriptionLineEdit = QLineEdit(self.window)
+        self.descriptionWarning = QLabel(' ', self.window)
+
+        self.submitButton = QPushButton('Submit', self.window)
+        self.submitButton.clicked.connect(self.submit_income)
+        self.backButton = QPushButton('Back', self.window)
+        self.backButton.clicked.connect(self.back)
+
+        self.layout.addWidget(self.amountLabel, 0, 0)
+        self.layout.addWidget(self.amountLineEdit, 0, 1)
+        self.layout.addWidget(self.amountWarning, 0, 2)
+        self.layout.addWidget(self.dateLabel, 1, 0)
+        self.layout.addWidget(self.dateLineEdit, 1, 1)
+        self.layout.addWidget(self.dateWarning, 1, 2)
+        self.layout.addWidget(self.categoryLabel, 2, 0)
+        self.layout.addWidget(self.categoryComboBox, 2, 1)
+        self.layout.addWidget(self.descriptionLabel, 3, 0)
+        self.layout.addWidget(self.descriptionLineEdit, 3, 1)
+        self.layout.addWidget(self.descriptionWarning, 3, 2)
+        self.layout.addWidget(self.submitButton, 4, 0, 1, 3)
+        self.layout.addWidget(self.backButton, 5, 0, 1, 3)
+
+    def load_income_categories(self):
+        cursor = self.window.db.cursor
+        cursor.execute("SELECT name FROM income_categories")
+        categories = [row[0] for row in cursor.fetchall()]
+        self.categoryComboBox.addItems(categories)
+
+    def submit_income(self):
+        amount = self.amountLineEdit.text()
+        date = self.dateLineEdit.text()
+        category = self.categoryComboBox.currentText()
+        description = self.descriptionLineEdit.text()
+
+        try:
+            repo = FineRepository(self.window.db)
+            register_fine = RegisterFine(repo)
+            user_name = (
+                self.window.signupLoginMenu.usernamelogin 
+                if self.window.signupLoginMenu.logining 
+                else self.window.signupLoginMenu.user.userName
+            )
+            register_fine.register_income(user_name, float(amount), date, category, description)
+            self.descriptionWarning.setText('Income registered successfully')
+        except ValueError as e:
+            self.descriptionWarning.setText(str(e))
+
+    def back(self):
+        self.amountLabel.setVisible(False)
+        self.amountLineEdit.setVisible(False)
+        self.amountWarning.setVisible(False)
+        self.dateLabel.setVisible(False)
+        self.dateLineEdit.setVisible(False)
+        self.dateWarning.setVisible(False)
+        self.categoryLabel.setVisible(False)
+        self.categoryComboBox.setVisible(False)
+        self.descriptionLabel.setVisible(False)
+        self.descriptionLineEdit.setVisible(False)
+        self.descriptionWarning.setVisible(False)
+        self.submitButton.setVisible(False)
+        self.backButton.setVisible(False)
+        self.mainMenu = MainMenu(self.window)
 
 class ChangeUserProfile:
     def __init__(self, window: MyWindow):
@@ -1254,7 +878,8 @@ class CategoryMenu:
 
         try:
             category.validate_name()
-            category.save_to_database(self.window.db, category_type)
+            repo = CategoryRepository(self.window.db)
+            category.save_to_database(repo, category_type)
             self.categoryNameWarning.setText('Category added successfully')
         except ValueError as e:
             self.categoryNameWarning.setText(str(e))
@@ -1268,7 +893,6 @@ class CategoryMenu:
         self.submitButton.setVisible(False)
         self.backButton.setVisible(False)
         self.mainMenu=MainMenu(self.window)
-
 
 class SearchMenu:
     def __init__(self, window: MyWindow):
@@ -1412,88 +1036,6 @@ class SearchMenu:
         self.moneyrange = self.moneyrangeline.text()
         self.searchin= self.searchinLine.text()
         return [self.day,self.month,self.year,self.incomeExpense,self.moneyrange,self.searchin]
-class Search:
-    def __init__(self, menu: SearchMenu):
-        self.menu = menu
-        self.model = self.menu.model
-        self.table = self.menu.table
-
-    def search(self, db: DataBase):
-        self.searchText = self.menu.searchLine.text()
-        self.searchfilters = {
-            'day': self.menu.get_filters()[0] if self.menu.get_filters()[0].strip() else None,
-            'month': self.menu.get_filters()[1] if self.menu.get_filters()[1].strip() else None,
-            'year': self.menu.get_filters()[2] if self.menu.get_filters()[2].strip() else None,
-            'income_expense': self.menu.get_filters()[3] if self.menu.get_filters()[3].strip() else None,
-            'money_range': self.menu.get_filters()[4] if self.menu.get_filters()[4].strip() else None,
-            'search_in': self.menu.get_filters()[5] if self.menu.get_filters()[5].strip() else None
-        }
-        if self.searchfilters['income_expense'] == 'income':
-            base_query = f"SELECT * FROM income_fine WHERE (date LIKE '%{self.searchText}%' OR category LIKE '%{self.searchText}%' OR description LIKE '%{self.searchText}%' or amount LIKE '%{self.searchText}%')"
-            self.filtering(base_query)
-            db.cursor.execute(base_query)
-            rows = db.cursor.fetchall()
-            self.model.clear()
-            self.model.setHorizontalHeaderLabels(["Amount", "Date", "Category", "Description"])
-            for row in rows:
-                date = QStandardItem(str(row[0]))
-                category = QStandardItem(str(row[1]))
-                description = QStandardItem(str(row[2]))
-                amount = QStandardItem(str(row[3]))
-                self.model.appendRow([date, category, description, amount])
-            self.table.show()
-        elif self.searchfilters['income_expense'] == 'expense':
-            base_query = f"SELECT * FROM expense_fine WHERE (date LIKE '%{self.searchText}%' OR category LIKE '%{self.searchText}%' OR description LIKE '%{self.searchText}%' or amount LIKE '%{self.searchText}%')"
-            self.filtering(base_query)
-            db.cursor.execute(base_query)
-            rows = db.cursor.fetchall()
-            self.model.clear()
-            self.model.setHorizontalHeaderLabels(["Amount", "Date", "Category", "Description"])
-            for row in rows:
-                date = QStandardItem(str(row[0]))
-                category = QStandardItem(str(row[1]))
-                description = QStandardItem(str(row[2]))
-                amount = QStandardItem(str(row[3]))
-                self.model.appendRow([date, category, description, amount])
-            self.table.show()
-        elif self.searchfilters['income_expense'] == 'both':
-            base_query1 = base_query = f"SELECT * FROM income_fine WHERE (date LIKE '%{self.searchText}%' OR category LIKE '%{self.searchText}%' OR description LIKE '%{self.searchText}%' or amount LIKE '%{self.searchText}%')"
-            self.filtering(base_query1)
-            db.cursor.execute(base_query1)
-            base_query2 = base_query = f"SELECT * FROM expense_fine WHERE (date LIKE '%{self.searchText}%' OR category LIKE '%{self.searchText}%' OR description LIKE '%{self.searchText}%' or amount LIKE '%{self.searchText}%')"
-            self.filtering(base_query2)
-            db.cursor.execute(base_query2)
-            rows = db.cursor.fetchall()
-            self.model.clear()
-            self.model.setHorizontalHeaderLabels(["Amount", "Date", "Category", "Description"])
-            for row in rows:
-                date = QStandardItem(str(row[0]))
-                category = QStandardItem(str(row[1]))
-                description = QStandardItem(str(row[2]))
-                amount = QStandardItem(str(row[3]))
-                self.model.appendRow([date, category, description, amount])
-            self.table.show()
-
-    def filtering(self, base_query):
-        for filter, value in self.searchfilters.items():
-            if filter != 'income_expense' and value is not None:
-                if filter == 'day' and value is not None:
-                    base_query += f" AND SUBSTRING(date,9,2)='{value}'"
-                elif filter == 'month' and value is not None:
-                    base_query += f" AND SUBSTRING(date,6,2)='{value}'"
-                elif filter == 'year' and value is not None:
-                    base_query += f" AND SUBSTRING(date,1,4)='{value}'"
-                elif filter == 'money_range' and value is not None:
-                    value_range = value.split(sep=' ')
-                    base_query += f" AND amount BETWEEN {value_range[0]} AND {value_range[1]}"
-                elif filter == 'search_in' and value is not None:
-                    if value == 'categories':
-                        base_query += f" AND category='{value}'"
-                    elif value == 'description':
-                        base_query += f" AND description='{value}'"
-                    elif value == 'both':
-                        base_query += f" AND category='{value}' and description='{value}'"
-
 
 class ReportMenu:
     def __init__(self, window: MyWindow):
@@ -1612,179 +1154,152 @@ class ReportMenu:
         self.moneyrange = self.moneyrangeline.text()
         self.searchin= self.categoryline.text()
         return [self.day,self.month,self.year,self.incomeExpense,self.moneyrange,self.searchin]
-class Report:
-    def __init__(self, menu: ReportMenu):
-        self.menu = menu
-        self.model=self.menu.model
-        self.table=self.menu.table
-    def search(self, db: DataBase):
-        self.searchfilters = {
-            'day': self.menu.get_filters()[0] if self.menu.get_filters()[0].strip() else None,
-            'month': self.menu.get_filters()[1] if self.menu.get_filters()[1].strip() else None,
-            'year': self.menu.get_filters()[2] if self.menu.get_filters()[2].strip() else None,
-            'income_expense': self.menu.get_filters()[3] if self.menu.get_filters()[3].strip() else None,
-            'money_range': self.menu.get_filters()[4] if self.menu.get_filters()[4].strip() else None,
-            'search_in': self.menu.get_filters()[5] if self.menu.get_filters()[5].strip() else None
-        }
-        if self.searchfilters['income_expense'] == 'income':
-            base_query = ["SELECT * FROM income_fine WHERE"]
-            print(base_query)
-            self.filtering(base_query)
-            db.cursor.execute(base_query[0])
-            rows = db.cursor.fetchall()
-            self.model.clear()
-            self.model.setHorizontalHeaderLabels(["Amount", "Date", "Category", "Description"])
-            for row in rows:
-                date = QStandardItem(str(row[0]))
-                category = QStandardItem(str(row[1]))
-                description = QStandardItem(str(row[2]))
-                amount = QStandardItem(str(row[3]))
-                self.model.appendRow([date, category, description, amount])
-            self.table.show()
-        elif self.searchfilters['income_expense'] == 'expense':
-            base_query = ["SELECT * FROM expense_fine WHERE"]
-            self.filtering(base_query)
-            db.cursor.execute(base_query[0])
-            rows = db.cursor.fetchall()
-            self.model.clear()
-            self.model.setHorizontalHeaderLabels(["Amount", "Date", "Category", "Description"])
-            for row in rows:
-                date = QStandardItem(str(row[0]))
-                category = QStandardItem(str(row[1]))
-                description = QStandardItem(str(row[2]))
-                amount = QStandardItem(str(row[3]))
-                self.model.appendRow([date, category, description, amount])
-            self.table.show()
-            print(self.searchfilters)
-            print(row)
-        elif self.searchfilters['income_expense'] == 'both':
-            base_query1 = base_query = ["SELECT * FROM income_fine WHERE"]
-            self.filtering(base_query1)
-            db.cursor.execute(base_query1[0])
-            base_query2 = base_query = ["SELECT * FROM expense_fine WHERE"]
-            self.filtering(base_query2)
-            db.cursor.execute(base_query2[0])
-            rows = db.cursor.fetchall()
-            self.model.clear()
-            self.model.setHorizontalHeaderLabels(["Amount", "Date", "Category", "Description"])
-            for row in rows:
-                date = QStandardItem(str(row[0]))
-                category = QStandardItem(str(row[1]))
-                description = QStandardItem(str(row[2]))
-                amount = QStandardItem(str(row[3]))
-                self.model.appendRow([date, category, description, amount])
-            self.table.show()
 
-    def filtering(self, base_query):
-        print(self.searchfilters.items())
-        for filter, value in self.searchfilters.items():
-            if filter != 'income_expense' and value is not None:
-                if filter == 'day' and value is not None:
-                    base_query[0] += f" SUBSTR(date, 9) ='{value}'"
-                elif filter == 'month' and value is not None:
-                    base_query[0] += f" AND SUBSTR(date, 6, 2)='{value}'"
-                elif filter == 'year' and value is not None:
-                    base_query[0] += f" AND SUBSTR(date, 1, 4)='{value}'"
-                elif filter == 'money_range' and value is not None:
-                    value_range = value.split(sep=' ')
-                    base_query[0] += f" AND amount BETWEEN {value_range[0]} AND {value_range[1]}"
-                elif filter == 'search_in' and value is not None:
-                        base_query[0] += f" AND category='{value}'"
-
-class MainMenu():
+class SettingMenu:
     def __init__(self, window: MyWindow):
-        self.window=window
-        self.show_main_menu()
+        self.window = window
+        self.init_ui()
 
-    def register_income(self):
-        self.hide_menu()
-        self.registerIncomeMenu=RegisterIncomeMenu(self.window)
+    def init_ui(self):
+        self.window.signupLoginMenu.mainMenu.hide_menu()
+        self.central_widget = QWidget(self.window)
+        self.window.setCentralWidget(self.central_widget)
+        self.layout = QVBoxLayout(self.central_widget)
 
-    def register_expense(self):
-        self.hide_menu()
-        self.registerIncomeMenu=RegisterExpenseMenu(self.window)
+        self.changeUserProfileButton = QPushButton(
+            "Change user profile", self.window)
+        self.changeUserProfileButton.clicked.connect(self.change_user_profile)
+        self.layout.addWidget(self.changeUserProfileButton)
 
-    def show_categories(self):
-        self.hide_menu()
-        self.categoryMenu=CategoryMenu(self.window)
+        self.deleteUserProfileButton = QPushButton(
+            "Delete user Profile", self.window)
+        self.deleteUserProfileButton.clicked.connect(self.delete_user_profile)
+        self.layout.addWidget(self.deleteUserProfileButton)
 
-    def show_search(self):
-        self.hide_menu()
-        self.searchMenu=SearchMenu(self.window)
+        self.deleteIncomesButton = QPushButton("Delete incomes", self.window)
+        self.deleteIncomesButton.clicked.connect(self.delete_incomes)
+        self.layout.addWidget(self.deleteIncomesButton)
 
-    def show_reporting(self):
-        self.hide_menu()
-        self.reportMenu=ReportMenu(self.window)
+        self.deleteExpensesButton = QPushButton("Delete expenses", self.window)
+        self.deleteExpensesButton.clicked.connect(self.delete_expenses)
+        self.layout.addWidget(self.deleteExpensesButton)
 
-    def show_settings(self):
-        self.hide_menu()
-        self.settingMenu=SettingMenu(self.window)
+        self.mainMenuButton = QPushButton("Main menu", self.window)
+        self.mainMenuButton.clicked.connect(self.back)
+        self.layout.addWidget(self.mainMenuButton)
 
-    def show_main_menu(self):
-        # Welcome label
-        self.welcominglabel=QLabel('Welcome to elmos balance.', self.window)
-        self.welcominglabel.setGeometry(150, 100, 400, 200)
-        self.welcominglabel.show()
+        # Set the geometry for the central widget
+        self.central_widget.setGeometry(100, 100, 300, 200)
+        self.window.show()  # Show the window
 
-        # Register Income button
-        self.registerIncomeButton=QPushButton('Register Income', self.window)
-        self.registerIncomeButton.setGeometry(100, 250, 200, 50)
-        self.registerIncomeButton.clicked.connect(self.register_income)
-        self.registerIncomeButton.show()
+    def change_user_profile(self):
+        self.profile = ChangeUserProfile(self.window)
+        # implement changing user profile logic here
+        pass
 
-        # Register Expense button
-        self.registerExpenseButton=QPushButton(
-            'Register Expense', self.window)
-        self.registerExpenseButton.setGeometry(350, 250, 200, 50)
-        self.registerExpenseButton.clicked.connect(self.register_expense)
-        self.registerExpenseButton.show()
+    def delete_user_profile(self):
+        # implement deleting user profile logic here
+        pass
 
-        # Categories button
-        self.categoriesButton=QPushButton('Categories', self.window)
-        self.categoriesButton.setGeometry(100, 350, 200, 50)
-        self.categoriesButton.clicked.connect(self.show_categories)
-        self.categoriesButton.show()
+    def delete_incomes(self):
+        # implement deleting incomes logic here
+        pass
 
-        # Search button
-        self.searchButton=QPushButton('Search', self.window)
-        self.searchButton.setGeometry(350, 350, 200, 50)
-        self.searchButton.clicked.connect(self.show_search)
-        self.searchButton.show()
+    def delete_expenses(self):
+        # implement deleting expenses logic here
+        pass
 
-        # Reporting button
-        self.reportingButton=QPushButton('Reporting', self.window)
-        self.reportingButton.setGeometry(100, 450, 200, 50)
-        self.reportingButton.clicked.connect(self.show_reporting)
-        self.reportingButton.show()
+    def back(self):
+        self.changeUserProfileButton.setVisible(False)
+        self.deleteUserProfileButton.setVisible(False)
+        self.deleteIncomesButton.setVisible(False)
+        self.deleteExpensesButton.setVisible(False)
+        self.mainMenuButton.setVisible(False)
+        self.mainMenu = MainMenu(self.window)
 
-        # Settings button
-        self.settingsButton=QPushButton('Settings', self.window)
-        self.settingsButton.setGeometry(350, 450, 200, 50)
-        self.settingsButton.clicked.connect(self.show_settings)
-        self.settingsButton.show()
+class RegisterExpenseMenu:
+    def __init__(self, window: MyWindow):
+        self.window = window
+        self.init_ui()
 
-        # Exit button
-        self.exitButton=QPushButton('Exit', self.window)
-        self.exitButton.setGeometry(250, 550, 200, 50)
-        self.exitButton.clicked.connect(self.exit_app)
-        self.exitButton.show()
+    def init_ui(self):
+        self.window.signupLoginMenu.mainMenu.hide_menu()
+        central_widget = QWidget(self.window)
+        self.window.setCentralWidget(central_widget)
+        self.layout = QGridLayout(central_widget)
 
-    def exit_app(self):
-        # Implement action for Exit button
-        self.window.close()
+        self.amountLabel = QLabel('Enter amount: ', self.window)
+        self.amountLineEdit = QLineEdit(self.window)
+        self.amountWarning = QLabel(' ', self.window)
 
-    def hide_menu(self):
-        self.welcominglabel.setVisible(False)
-        self.registerIncomeButton.setVisible(False)
-        self.registerExpenseButton.setVisible(False)
-        self.categoriesButton.setVisible(False)
-        self.searchButton.setVisible(False)
-        self.reportingButton.setVisible(False)
-        self.settingsButton.setVisible(False)
-        self.exitButton.setVisible(False)
+        self.dateLabel = QLabel('Enter date (yyyy/mm/dd): ', self.window)
+        self.dateLineEdit = QLineEdit(self.window)
+        self.dateWarning = QLabel(' ', self.window)
 
+        self.categoryLabel = QLabel('Select category: ', self.window)
+        self.categoryComboBox = QComboBox(self.window)
+        self.load_expense_categories()
 
-if __name__ == '__main__':
-    window=MyWindow()
-    window.show()
-    sys.exit(app.exec())
+        self.descriptionLabel = QLabel('Enter description: ', self.window)
+        self.descriptionLineEdit = QLineEdit(self.window)
+        self.descriptionWarning = QLabel(' ', self.window)
+
+        self.submitButton = QPushButton('Submit', self.window)
+        self.submitButton.clicked.connect(self.submit_expense)
+        self.backButton = QPushButton('Back', self.window)
+        self.backButton.clicked.connect(self.back)
+
+        self.layout.addWidget(self.amountLabel, 0, 0)
+        self.layout.addWidget(self.amountLineEdit, 0, 1)
+        self.layout.addWidget(self.amountWarning, 0, 2)
+        self.layout.addWidget(self.dateLabel, 1, 0)
+        self.layout.addWidget(self.dateLineEdit, 1, 1)
+        self.layout.addWidget(self.dateWarning, 1, 2)
+        self.layout.addWidget(self.categoryLabel, 2, 0)
+        self.layout.addWidget(self.categoryComboBox, 2, 1)
+        self.layout.addWidget(self.descriptionLabel, 3, 0)
+        self.layout.addWidget(self.descriptionLineEdit, 3, 1)
+        self.layout.addWidget(self.descriptionWarning, 3, 2)
+        self.layout.addWidget(self.submitButton, 4, 0, 1, 3)
+        self.layout.addWidget(self.backButton, 5, 0, 1, 3)
+
+    def load_expense_categories(self):
+        cursor = self.window.db.cursor
+        cursor.execute("SELECT name FROM expense_categories")
+        categories = [row[0] for row in cursor.fetchall()]
+        self.categoryComboBox.addItems(categories)
+
+    def submit_expense(self):
+        amount = self.amountLineEdit.text()
+        date = self.dateLineEdit.text()
+        category = self.categoryComboBox.currentText()
+        description = self.descriptionLineEdit.text()
+
+        try:
+            repo = FineRepository(self.window.db)
+            service = RegisterFine(repo)
+            username = (
+                self.window.signupLoginMenu.usernamelogin 
+                if self.window.signupLoginMenu.logining 
+                else self.window.signupLoginMenu.user.userName
+            )
+            service.register_expense(username, float(amount), date, category, description)
+            self.descriptionWarning.setText('Expense registered successfully')
+        except ValueError as e:
+            self.descriptionWarning.setText(str(e))
+
+    def back(self):
+        self.amountLabel.setVisible(False)
+        self.amountLineEdit.setVisible(False)
+        self.amountWarning.setVisible(False)
+        self.dateLabel.setVisible(False)
+        self.dateLineEdit.setVisible(False)
+        self.dateWarning.setVisible(False)
+        self.categoryLabel.setVisible(False)
+        self.categoryComboBox.setVisible(False)
+        self.descriptionLabel.setVisible(False)
+        self.descriptionLineEdit.setVisible(False)
+        self.descriptionWarning.setVisible(False)
+        self.submitButton.setVisible(False)
+        self.backButton.setVisible(False)
+        self.mainMenu = MainMenu(self.window)
